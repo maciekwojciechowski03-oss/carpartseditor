@@ -1364,10 +1364,42 @@ canvas.addEventListener('mouseup',    onUp);
 canvas.addEventListener('mouseleave', onUp);
 
 function cpos(e) {
-  const r  = canvas.getBoundingClientRect();
-  const sx = canvas.width  / r.width;
-  const sy = canvas.height / r.height;
-  return { x: (e.clientX - r.left) * sx, y: (e.clientY - r.top) * sy };
+  // Liczymy pozycję względem canvasWrap (ten element NIE jest obracany —
+  // obracany jest tylko canvasContainer w środku, więc tu mamy stały punkt odniesienia)
+  const wrapRect = canvasWrap.getBoundingClientRect();
+  const rw = wrapRect.width;
+  const rh = wrapRect.height;
+  const cx = rw / 2 + zoomOffX;
+  const cy = rh / 2 + zoomOffY;
+
+  // Pozycja myszy względem canvasWrap
+  const mx = e.clientX - wrapRect.left;
+  const my = e.clientY - wrapRect.top;
+
+  // Odejmujemy translate(cx, cy) zastosowany w applyZoom()
+  const dx = mx - cx;
+  const dy = my - cy;
+
+  // Odwracamy obrót (photoRotation) — to jest brakujący krok, który psuł pozycję strzałek
+  const rad = (-photoRotation * Math.PI) / 180;
+  const u = dx * Math.cos(rad) - dy * Math.sin(rad);
+  const v = dx * Math.sin(rad) + dy * Math.cos(rad);
+
+  // Odwracamy skalowanie (zoom)
+  const ux = u / zoomScale;
+  const uy = v / zoomScale;
+
+  // Dodajemy z powrotem połowę wyświetlanego (CSS) rozmiaru canvasa
+  const cw = parseFloat(canvas.style.width)  || canvas.width;
+  const ch = parseFloat(canvas.style.height) || canvas.height;
+  const localX = ux + cw / 2;
+  const localY = uy + ch / 2;
+
+  // Przeliczamy z pikseli CSS na rzeczywiste piksele canvasa (rozdzielczość zdjęcia)
+  const scaleX = canvas.width  / cw;
+  const scaleY = canvas.height / ch;
+
+  return { x: localX * scaleX, y: localY * scaleY };
 }
 
 function onDown(e) {
